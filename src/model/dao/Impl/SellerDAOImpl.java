@@ -95,7 +95,42 @@ public class SellerDAOImpl implements SellerDAO {
 
     @Override
     public List<Seller> findAll() {
-        return List.of();
+        PreparedStatement st = null;
+        ResultSet rs = null;
+
+        try {
+            st = conn.prepareStatement(
+                    "SELECT seller.*, department.Name as DepName "
+                            + "FROM seller INNER JOIN department "
+                            + "ON seller.DepartmentId = department.Id "
+                            + "ORDER BY seller.Name"
+            );
+
+
+            rs = st.executeQuery();
+
+            List<Seller> list = new ArrayList<>();
+            Map<Integer, Department> map = new HashMap<>();
+
+            while (rs.next()) {
+                Department dep = map.get(rs.getInt("DepartmentId"));
+
+                if (dep == null) {
+                    dep = instantiateDepartment(rs);
+                    map.put(rs.getInt("DepartmentId"), dep);
+                }
+
+                Seller obj = instantiateSeller(rs, dep);
+                list.add(obj);
+            }
+
+            return list;
+        } catch (SQLException e) {
+            throw new DbException(e.getMessage());
+        } finally {
+            DB.closeStatement(st);
+            DB.closeResultSet(rs);
+        }
     }
 
     @Override
@@ -108,8 +143,8 @@ public class SellerDAOImpl implements SellerDAO {
                     "SELECT seller.*, department.Name as DepName "
                             + "FROM seller INNER JOIN department "
                             + "ON seller.DepartmentId = department.Id "
-                            + "WHERE seller.DepartmentId = ? "  // Espaço antes de ORDER BY
-                            + "ORDER BY seller.Name"            // Certifique-se de que "Name" é o nome da coluna correta
+                            + "WHERE seller.DepartmentId = ? "
+                            + "ORDER BY seller.Name"
             );
 
             st.setInt(1, department.getId());
